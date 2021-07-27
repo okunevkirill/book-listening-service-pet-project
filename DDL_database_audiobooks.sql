@@ -94,7 +94,7 @@ CREATE TABLE audiobooks (
     title_name VARCHAR(255) NOT NULL,   -- Большинство названий книг не превосходят 100 символов, но есть и 771
     author_id BIGINT UNSIGNED,          -- NULL если автор не известен
     voice_of_book_id BIGINT UNSIGNED,   -- NULL если чтец не известен
-    release_year DATE COMMENT 'Год выпуска аудиокниги',
+    release_year YEAR COMMENT 'Год выпуска аудиокниги',
     publishing_house_id BIGINT UNSIGNED,
     description JSON,                   -- Описание книги, информация о серии, о мире и т.д. 
     body_image BLOB,                    -- TODO Размер изображений программно необходимо ужать до max=65 КБ
@@ -248,6 +248,4 @@ CREATE TABLE user_rating (
     ON UPDATE SET NULL
     ON DELETE RESTRICT
 ) COMMENT 'Оценка от пользователя';
-# ==============================================================================================
-
 # ==============================================================================================
