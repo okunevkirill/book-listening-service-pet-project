@@ -12,24 +12,36 @@ USE audiobooks;
 DROP TABLE IF EXISTS links_by_book;
 CREATE TABLE links_by_book (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    audio_link TINYINT UNSIGNED NOT NULL,
-    link_to_text TINYINT UNSIGNED NOT NULL,
+    links JSON DEFAULT NULL -- Хеш таблица
     
-    INDEX links_by_book_idx (audio_link, link_to_text)
 ) COMMENT 'Взаимные указатели текстового формата аудио (для переключения)';
+
+DROP TABLE IF EXISTS houses;
+CREATE TABLE houses (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    house_name VARCHAR(50) UNIQUE NOT NULL,
+    
+    INDEX (house_name)
+) COMMENT 'Список издательств';
 
 DROP TABLE IF EXISTS publishing_houses;
 CREATE TABLE publishing_houses (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    house_name VARCHAR(50) UNIQUE NOT NULL,
+    house_id BIGINT UNSIGNED,
+    book_id BIGINT UNSIGNED UNIQUE NOT NULL,
     
-    INDEX publishing_house_name_idx (house_name)
+    INDEX (house_id),
+    INDEX (book_id),
+    
+    FOREIGN KEY (house_id) REFERENCES houses (id)
+    ON DELETE SET NULL 
+    ON UPDATE CASCADE
 ) COMMENT 'Издательство выпустившее книгу';
 
 DROP TABLE IF EXISTS category_type;
 CREATE TABLE category_type (
     id TINYINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, -- Кол-во жанров не более 255
-    category_name VARCHAR(50) NOT NULL,
+    category_name VARCHAR(50) UNIQUE NOT NULL,
     
     INDEX categories_name_idx (category_name)
 ) COMMENT 'Категория или жанр к которому относится книга';
@@ -38,6 +50,9 @@ DROP TABLE IF EXISTS categories_book;
 CREATE TABLE categories_book (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     category_type_id TINYINT UNSIGNED,
+    book_id BIGINT UNSIGNED NOT NULL,
+    
+    INDEX (book_id),
     
     FOREIGN KEY (category_type_id) REFERENCES category_type (id)
     ON DELETE SET NULL 
@@ -59,6 +74,9 @@ DROP TABLE IF EXISTS authors_book;
 CREATE TABLE authors_book (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     author_id BIGINT UNSIGNED,
+    book_id BIGINT UNSIGNED NOT NULL,
+    
+    INDEX (book_id),
     
     FOREIGN KEY (author_id) REFERENCES authors (id)
     ON DELETE SET NULL 
@@ -70,7 +88,7 @@ CREATE TABLE voice (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(50),
     second_name VARCHAR(50),
-    nickname VARCHAR(50) UNIQUE NOT NULL,
+    nickname VARCHAR(50) UNIQUE,
     
     INDEX voice_of_book_name_idx (first_name, second_name),
     INDEX voice_of_book_nickname (nickname)
@@ -80,8 +98,10 @@ DROP TABLE IF EXISTS voice_of_book;
 CREATE TABLE voice_of_book (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     voice_id BIGINT UNSIGNED, -- NULL для неизвестных чтецов
+    book_id BIGINT UNSIGNED NOT NULL,
     
     INDEX (voice_id),
+    INDEX (book_id),
     
     FOREIGN KEY (voice_id) REFERENCES voice (id)
     ON DELETE SET NULL 
@@ -114,19 +134,19 @@ CREATE TABLE audiobooks (
     INDEX (publishing_house_id),
     INDEX (category_book_id),
     
-    FOREIGN KEY (author_id) REFERENCES authors_book (id)
+    FOREIGN KEY (author_id) REFERENCES authors_book (book_id)
     ON DELETE SET NULL 
     ON UPDATE CASCADE,
     
-    FOREIGN KEY (voice_of_book_id) REFERENCES voice_of_book (id)
+    FOREIGN KEY (voice_of_book_id) REFERENCES voice_of_book (book_id)
     ON DELETE SET NULL 
     ON UPDATE CASCADE,
     
-    FOREIGN KEY (publishing_house_id) REFERENCES publishing_houses (id)
+    FOREIGN KEY (publishing_house_id) REFERENCES publishing_houses (book_id)
     ON DELETE SET NULL 
     ON UPDATE CASCADE,
     
-    FOREIGN KEY (category_book_id) REFERENCES categories_book (id)
+    FOREIGN KEY (category_book_id) REFERENCES categories_book (book_id)
     ON DELETE SET NULL 
     ON UPDATE CASCADE,
     
@@ -168,21 +188,6 @@ CREATE TABLE books_reviews (
     
 ) COMMENT 'Рецензии о книгах';
 
-DROP TABLE IF EXISTS data_types_for_commenting;
-CREATE TABLE data_types_for_commenting (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    audiobook_id BIGINT UNSIGNED,
-    user_comment_id BIGINT UNSIGNED,
-    book_review_id BIGINT UNSIGNED,
-    -- Все поля, за исключением id, взаимоисключающие (если в 1 есть значение, то в других NUll) 
-    FOREIGN KEY (audiobook_id) REFERENCES audiobooks (id)
-    ON DELETE CASCADE 
-    ON UPDATE CASCADE,
-    
-    FOREIGN KEY (book_review_id) REFERENCES books_reviews (id)
-    ON DELETE CASCADE 
-    ON UPDATE CASCADE
-);
 
 DROP TABLE IF EXISTS users_comments;
 CREATE TABLE users_comments (
@@ -190,33 +195,33 @@ CREATE TABLE users_comments (
     body VARCHAR(2200) COMMENT 'Текст комментария (кол-во символов спец. ограничил 2200)',
     created_at DATETIME DEFAULT NOW(),  -- Время создания комментария
     user_id BIGINT UNSIGNED NOT NULL,   -- Тот кто написал комментарий
-    data_types_for_commenting_id BIGINT UNSIGNED NOT NULL, -- Указатель на то что комментируем
+    -- Следующие 3 поля взаимоисключающие (если в 1 не NULL, то в остальных NULL)
+    audiobook_id BIGINT UNSIGNED,       -- Не NULL если комментируем книгу
+    user_comment_id BIGINT UNSIGNED,    -- Не NULL если комментируем другой комментарий
+    book_review_id BIGINT UNSIGNED,     -- Не NULL если комментируем рецензию
     
+        
     INDEX (user_id),
-    INDEX (data_types_for_commenting_id),
     
     FOREIGN KEY (user_id) REFERENCES users (id)
-    ON DELETE NO ACTION 
+    ON DELETE CASCADE 
     ON UPDATE CASCADE,
     
-    FOREIGN KEY (data_types_for_commenting_id) REFERENCES data_types_for_commenting (id)
+    FOREIGN KEY (audiobook_id) REFERENCES audiobooks (id)
+    ON DELETE CASCADE 
+    ON UPDATE CASCADE,
+    
+    FOREIGN KEY (book_review_id) REFERENCES books_reviews (id)
     ON DELETE CASCADE 
     ON UPDATE CASCADE
 ) COMMENT 'Комментарии пользователя';
-
-ALTER TABLE data_types_for_commenting
-ADD CONSTRAINT fk_data_users_comments_id
-    FOREIGN KEY (user_comment_id) REFERENCES users_comments(id)
-    ON UPDATE RESTRICT
-    ON DELETE RESTRICT;
-
 
 DROP TABLE IF EXISTS likes;
 CREATE TABLE likes (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,           -- тот кто ставит лайк
     user_comment_id BIGINT UNSIGNED NOT NULL,   -- комментарий на который ставят лайк
-    created_at DATETIME DEFAULT NOW(),
+    created_at DATETIME DEFAULT NOW(),          
     flag_like BIT(1) NOT NULL DEFAULT FALSE,
     flag_dislike BIT(1) NOT NULL DEFAULT FALSE,
     
@@ -229,7 +234,7 @@ CREATE TABLE likes (
     
     FOREIGN KEY (user_comment_id) REFERENCES users_comments (id)
     ON UPDATE NO ACTION
-    ON DELETE CASCADE
+    ON DELETE NO ACTION
 ) COMMENT 'Лайки к комментариям';
 
 DROP TABLE IF EXISTS user_rating;
@@ -243,9 +248,14 @@ CREATE TABLE user_rating (
     overall TINYINT DEFAULT NULL,               -- Общее впечатление о книги
     
     INDEX (user_id),
+    INDEX (audiobook_id),
     
     FOREIGN KEY (user_id) REFERENCES users (id)
-    ON UPDATE SET NULL
-    ON DELETE RESTRICT
+    ON UPDATE CASCADE
+    ON DELETE SET NULL,
+    
+    FOREIGN KEY (audiobook_id) REFERENCES audiobooks (id)
+    ON UPDATE CASCADE 
+    ON DELETE CASCADE
 ) COMMENT 'Оценка от пользователя';
 # ==============================================================================================
