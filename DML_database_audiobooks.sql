@@ -1,5 +1,6 @@
 USE audiobooks;
 # ==============================================================================================
+# Скрипты наполнения выборки (малый объём данных)
 INSERT INTO audiobooks.category_type (category_name)
 VALUES  ('Фантастика, фэнтези'),
         ('Приключения'),
@@ -392,4 +393,148 @@ INSERT INTO audiobooks.likes (user_id,user_comment_id,flag_like,flag_dislike)
 VALUES  (1,2,1,0),
         (2,3,0,1);    
 # ==============================================================================================
+# Скрипты характерных выборок
+SELECT * FROM audiobooks.audiobooks;    -- Вся информация об имеющихся аудиокнигах
+SELECT * FROM audiobooks.authors;       -- Вся информация о существующих авторах
+SELECT * FROM audiobooks.voice;         -- Вся информация о существующих чтецах
+SELECT * FROM audiobooks.category_type; -- Вся информация о существующих категориях книг
+SELECT * FROM audiobooks.houses;        -- Вся информация о существующих издательствах
+SELECT * FROM audiobooks.users;         -- Вся информация о существующих пользователях
+# ------------------------------------------------------------
+
+SELECT *
+  FROM audiobooks.audiobooks
+ WHERE title_name LIKE '%ос%'
+ORDER BY updated_at DESC;     -- Поиск всей информации о книге по шаблону и вывод в обратном порядке обновления записи
+
+# ------------------------------------------------------------
+SET @test_id = 10; -- Переменная соответствующая id аудиокниги
+# ------------------------------------------------------------
+-- Для уточнения и проверки
+SELECT *
+  FROM audiobooks.audiobooks
+ WHERE id=@test_id;                        
+
+
+# Вывод в алфавитном порядке авторов определённой книги
+ 
+-- Через вложенные запросы
+SELECT first_name, second_name 
+FROM audiobooks.authors
+WHERE id IN (
+    -- Выборка автора книги
+    SELECT author_id
+    FROM audiobooks.authors_book
+    WHERE book_id=(
+        -- Указание на авторов книги
+        SELECT author_id
+        FROM audiobooks.audiobooks
+        WHERE id=@test_id
+    )
+ORDER BY second_name 
+);
+
+-- Через JOIN
+SELECT DISTINCT 
+    aus.first_name,
+    aus.second_name
+FROM
+    audiobooks.authors AS aus
+JOIN
+    audiobooks.authors_book ab
+JOIN
+    audiobooks.audiobooks a
+ON 
+    a.id = @test_id AND ab.book_id = a.author_id AND aus.id = ab.author_id
+ORDER BY aus.second_name;
+
+# ------------------------------------------------------------
+# Вывод в алфавитном порядке чтецов определённой книги
+
+-- Через JOIN
+SELECT DISTINCT 
+    v.first_name,
+    v.second_name,
+    v.nickname 
+FROM
+    audiobooks.voice AS v
+JOIN
+    audiobooks.voice_of_book vob
+JOIN
+    audiobooks.audiobooks a
+ON
+    a.id = @test_id AND vob.book_id =a.voice_of_book_id AND v.id = vob.voice_id 
+ORDER BY v.second_name;
+
+# ------------------------------------------------------------
+# Вывод издательства определённой книги (пользуюсь тем что для 1 книги 1 издательство)
+-- Через вложенные запросы
+SELECT h.house_name 
+FROM audiobooks.houses AS h
+WHERE h.id = (
+    SELECT ph.house_id 
+    FROM audiobooks.publishing_houses AS ph 
+    WHERE ph.book_id = (
+        SELECT a.publishing_house_id 
+        FROM audiobooks.audiobooks AS a
+        WHERE a.id = @test_id
+    )
+);
+
+-- Через JOIN
+SELECT
+    h.house_name
+FROM
+    audiobooks.houses AS h
+JOIN
+    audiobooks.publishing_houses AS ph
+JOIN
+    audiobooks.audiobooks AS a
+ON
+    a.id = @test_id AND ph.book_id = a.publishing_house_id AND h.id = ph.house_id;
+# ------------------------------------------------------------
+# Вывод указателей для определённой книги (пользуюсь тем что для 1 книги 1 указатели)
+-- Через вложенные запросы
+SELECT links 
+FROM audiobooks.links_by_book AS lbb 
+WHERE id = (
+    SELECT id 
+    FROM audiobooks.audiobooks
+    WHERE id=@test_id
+);
+
+-- Через JOIN
+SELECT
+    lbb.links 
+FROM
+    audiobooks.links_by_book AS lbb
+JOIN
+    audiobooks.audiobooks AS a 
+ON
+    a.id = @test_id AND lbb.id = a.link_by_book_id;
+# ------------------------------------------------------------
+# Вывод в алфавитном порядке жанров к которым относится определённая книга
+SELECT
+    ct.category_name
+FROM
+    audiobooks.category_type AS ct 
+JOIN
+    audiobooks.categories_book AS cb 
+JOIN
+    audiobooks.audiobooks AS a 
+ON
+    a.id = @test_id AND cb.book_id =a.category_book_id AND ct.id =cb.category_type_id
+ORDER BY
+    ct.category_name;
+# ==============================================================================================
+
+
+
+
+
+
+
+
+
+
 
