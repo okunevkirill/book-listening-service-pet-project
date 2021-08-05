@@ -228,12 +228,15 @@ CREATE TABLE comments (
     review_id BIGINT UNSIGNED,          -- Не NULL если комментируем рецензию
     INDEX (user_id),
     
+    CONSTRAINT fk_comments_users
     FOREIGN KEY (user_id) REFERENCES users (user_id)
     ON DELETE CASCADE ON UPDATE CASCADE,
     
+    CONSTRAINT fk_comments_audiobooks
     FOREIGN KEY (audiobook_id) REFERENCES audiobooks (audiobook_id)
     ON DELETE CASCADE ON UPDATE CASCADE,
     
+    CONSTRAINT fk_comments_audiobooks_reviews
     FOREIGN KEY (review_id) REFERENCES audiobooks_reviews (review_id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) COMMENT 'Комментарии пользователя' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -292,9 +295,151 @@ CREATE TABLE users_rating (
 ) COMMENT 'Оценка от пользователя' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 # ====================================================================================================
 --
--- View structure for view `___`
+-- View structure for view `audiobooks_list`
 --
 
+CREATE OR REPLACE VIEW audiobooks_list
+AS
+SELECT
+    audiobooks.audiobook_id AS `audiobook_id`,
+    audiobooks.title_name AS `title_name`,
+    audiobooks.release_year AS `release_year`,
+    audiobooks.description AS `description`,
+    audiobooks.cover AS `cover`,
+    audiobooks.audio_size AS `audio_size`,
+    audiobooks.created_at AS `created_at`,
+    GROUP_CONCAT(DISTINCT CONCAT(categories.category_name ) SEPARATOR ', ') AS `categories`,
+    GROUP_CONCAT(DISTINCT CONCAT(authors.first_name, _utf8mb4' ', authors.second_name) SEPARATOR ', ') AS `authors`,
+    GROUP_CONCAT(DISTINCT CONCAT(voices.first_name, _utf8mb4' ', voices.second_name) SEPARATOR ', ') AS `voices`
+    
+FROM audiobooks     
+LEFT JOIN audiobooks_authors ON audiobooks.audiobook_id = audiobooks_authors.audiobook_id 
+JOIN authors ON audiobooks_authors.author_id = authors.author_id
+LEFT JOIN audiobooks_voices ON audiobooks.audiobook_id = audiobooks_voices.audiobook_id 
+JOIN voices ON audiobooks_voices.voice_id = voices.voice_id
+LEFT JOIN audiobooks_categories ON audiobooks.audiobook_id = audiobooks_categories.audiobook_id 
+JOIN categories ON audiobooks_categories.category_id = categories.category_id 
+GROUP BY audiobooks.audiobook_id;
 
 
+--
+-- View structure for view `authors_list`
+--
+
+CREATE OR REPLACE VIEW authors_list
+AS
+SELECT
+    authors.author_id AS `author_id`,
+    authors.first_name AS `first_name`,
+    authors.second_name AS `second_name`,
+    authors.description AS `description`,
+    GROUP_CONCAT(DISTINCT CONCAT(audiobooks.title_name) SEPARATOR ', ') AS `audiobooks`
+    
+FROM authors     
+LEFT JOIN audiobooks_authors ON authors.author_id = audiobooks_authors.author_id 
+JOIN audiobooks ON audiobooks_authors.audiobook_id = audiobooks.audiobook_id 
+GROUP BY authors.author_id;
+
+--
+-- View structure for view `rating_list`
+--
+
+CREATE OR REPLACE ALGORITHM=MERGE VIEW rating_list
+AS
+SELECT
+    abooks.audiobook_id AS `audiobook_id`,
+    abooks.title_name AS `title_name`,
+    AVG(ur.plot) AS `plot`,
+    AVG(ur.voice_acting) AS `voice_acting`,
+    AVG(ur.author) AS `author`,
+    AVG(ur.overall) AS `overall`
+FROM users_rating AS ur
+LEFT JOIN audiobooks AS abooks ON ur.audiobook_id = abooks.audiobook_id 
+GROUP BY abooks.audiobook_id
+ORDER BY abooks.title_name;
+# ====================================================================================================
+
+--
+-- Triggers to monitor changes in users
+--
+
+DELIMITER $$
+DROP TRIGGER IF EXISTS upd_users $$
+CREATE TRIGGER upd_users BEFORE UPDATE ON `users`
+FOR EACH ROW BEGIN
+    IF NEW.birthday >= CURRENT_DATE() THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Обновление отменено. Указанная дата рождения больше текущей даты';
+    END IF;
+END $$
+
+DROP TRIGGER IF EXISTS ins_users $$
+CREATE TRIGGER ins_users BEFORE INSERT ON `users`
+FOR EACH ROW BEGIN
+    IF NEW.birthday >= CURRENT_DATE() THEN
+        SET NEW.birthday = CURRENT_DATE();
+    END IF;
+END $$
+DELIMITER ;
+
+--
+-- Triggers to monitor changes in comments
+--
+
+DELIMITER $$
+DROP TRIGGER IF EXISTS upd_comments $$
+CREATE TRIGGER upd_comments BEFORE UPDATE ON `comments`
+FOR EACH ROW BEGIN
+    IF NEW.audiobook_id IS NOT NULL THEN
+        IF NEW.wrote_user_id IS NOT NULL OR NEW.review_id IS NOT NULL THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Обновление отменено. Поля `audiobook_id`, `wrote_user_id` и `review_id` взаимоисключающие';
+        END IF;
+    ELSEIF NEW.wrote_user_id IS NOT NULL AND NEW.review_id IS NOT NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Обновление отменено. Поля `audiobook_id`, `wrote_user_id` и `review_id` взаимоисключающие';
+    END IF;
+END $$
+
+DROP TRIGGER IF EXISTS ins_comments $$
+CREATE TRIGGER ins_comments BEFORE INSERT ON `comments`
+FOR EACH ROW BEGIN
+    IF NEW.audiobook_id IS NOT NULL THEN
+        IF NEW.wrote_user_id IS NOT NULL OR NEW.review_id IS NOT NULL THEN
+            SET NEW.audiobook_id = NULL;
+            SET NEW.wrote_user_id = NULL;
+            SET NEW.review_id = NULL;
+        END IF;
+    ELSEIF NEW.wrote_user_id IS NOT NULL AND NEW.review_id IS NOT NULL THEN 
+        SET NEW.audiobook_id = NULL;
+        SET NEW.wrote_user_id = NULL;
+        SET NEW.review_id = NULL;
+    END IF;
+END $$
+DELIMITER ;
+# ====================================================================================================
+
+--
+-- Procedure structure for procedure `random_book_cover`
+--
+
+DELIMITER $$
+DROP PROCEDURE IF EXISTS random_book_cover $$
+CREATE PROCEDURE random_book_cover (
+    IN category_id TINYINT UNSIGNED,
+    IN number_of_books TINYINT UNSIGNED
+)
+NOT DETERMINISTIC
+READS SQL DATA
+COMMENT 'Предоставление заданного количество обложек книг указанного жанра'
+BEGIN
+    SELECT
+        audiobooks.audiobook_id,
+        audiobooks.title_name,
+        audiobooks.cover 
+    FROM audiobooks
+    JOIN audiobooks_categories ON audiobooks.audiobook_id = audiobooks_categories.audiobook_id 
+    JOIN categories ON audiobooks_categories.category_id = category_id
+    GROUP BY audiobooks.audiobook_id
+    ORDER BY RAND()
+    LIMIT number_of_books;
+END $$
+DELIMITER ;
 # ====================================================================================================

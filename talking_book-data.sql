@@ -41,8 +41,8 @@ VALUES
     (11,'Король Лир',1993,NULL,'http://lorempixel.com/640/480/','4','783','Omnis assumenda labore consequatur facere earum iusto magnam reprehenderit. Repellendus dolorem placeat qui nisi.',72,'12+','1996-01-15 08:23:45','1990-01-29 12:46:28'),
     (12,'Паутина Шарлотты',1997,'{"key3": "value3", "key4": "value4"}','http://lorempixel.com/640/480/','9','355','Quae sint exercitationem voluptatem commodi aut odio veritatis. Suscipit voluptate nam inventore autem optio esse. Iste quam rerum nemo facilis.',3,'18+','1998-06-26 05:19:24','1975-05-17 23:12:39'),
     (13,'Вторая мировая война',2010,NULL,'http://lorempixel.com/640/480/','7','952','Voluptatem ipsa deleniti quo molestiae exercitationem ratione beatae. Unde molestias est odit animi voluptatem et. Natus deserunt eligendi quo debitis. Enim qui recusandae cum.',298819,'12+','1985-11-16 00:51:47','1977-05-10 09:22:24'),
-    (14,'Маленький принц',2016,NULL,'http://lorempixel.com/640/480/','2','590','Illo eos tempore voluptatem animi aperiam deleniti laboriosam consequuntur. Velit eligendi ut et est libero quia dolor cumque. Aut quam molestias molestiae enim. Veritatis quas autem cupiditate voluptas facilis tenetur enim. Nisi temporibus et consequuntur commodi neque velit.',0,'6+','1977-04-19 00:49:49','1999-01-14 09:06:22'),
-    (15,'Властелин колец',1980,NULL,'http://lorempixel.com/640/480/','2','749','Perspiciatis sed omnis nobis ratione consequatur omnis nemo. Et et sapiente consectetur porro omnis ut quia. Fugit a excepturi sunt sunt optio. Dolores corporis minima accusantium aliquid natus laboriosam ullam. Ut omnis consequuntur facilis ratione.',0,'16+','1972-10-31 04:29:57','1993-05-15 11:23:15'),
+    (14,'Маленький принц',2016,NULL,'http://lorempixel.com/640/480/','2','590','Illo eos tempore voluptatem animi aperiam deleniti laboriosam consequuntur. Velit eligendi ut et est libero quia dolor cumque. Aut quam molestias molestiae enim. Veritatis quas autem cupiditate voluptas facilis tenetur enim. Nisi temporibus et consequuntur commodi neque velit.',4232,'6+','1977-04-19 00:49:49','1999-01-14 09:06:22'),
+    (15,'Властелин колец',1980,NULL,'http://lorempixel.com/640/480/','2','749','Perspiciatis sed omnis nobis ratione consequatur omnis nemo. Et et sapiente consectetur porro omnis ut quia. Fugit a excepturi sunt sunt optio. Dolores corporis minima accusantium aliquid natus laboriosam ullam. Ut omnis consequuntur facilis ratione.',7568,'16+','1972-10-31 04:29:57','1993-05-15 11:23:15'),
     (16,'Герой нашего времени',1992,NULL,'http://lorempixel.com/640/480/','7','266','Accusantium maiores fugiat quis quo provident maxime est. Et tenetur placeat fugiat aut repellendus non. Et ab quos perferendis aut architecto.',902,'6+','1983-02-21 18:46:08','2014-05-29 01:05:43'),
     (17,'Идиот',1999,NULL,'http://lorempixel.com/640/480/','6','693','Nisi corporis accusamus voluptas consectetur. Eaque odio facere id ab. Sit molestiae libero ut incidunt. Ut vel qui consequatur quod et.',199621475,'0+','1976-05-25 22:42:55','1989-10-03 02:37:13'),
     (18,'Приключения Тома Сойера. Приключения Гекльберри Финна',1998,NULL,'http://lorempixel.com/640/480/','1','951','Inventore quia porro est sint error. Totam accusantium eligendi laborum. Tempore facilis deserunt sint neque qui officiis. Ut necessitatibus distinctio cumque et et quo et doloremque.',620,'0+','1996-04-12 07:50:40','1992-06-12 13:02:30'),
@@ -182,7 +182,7 @@ VALUES
     (3,16),
     (7,4),
     (8,17),
-    (9,5),
+    (9,1),
     (9,18),
     (10,6),
     (11,19),
@@ -226,7 +226,7 @@ VALUES
     (2,14),
     (3,3),
     (3,15),
-    (4,4),
+    (4,1),
     (4,16),
     (5,5),
     (5,17),
@@ -337,32 +337,7 @@ VALUES
     (8,8,4,4,2,3),
     (9,1,1,1,1,1);
 # ====================================================================================================
-#   Временные запросы для тестирования
-SELECT *
-FROM authors a ;
 
-SELECT aa.audiobook_id 
-FROM audiobooks_authors aa 
-WHERE author_id = (
-    SELECT author_id
-    FROM authors a
-    WHERE a.second_name='Каменистый'
-    LIMIT 1
-);
-
-SELECT a.title_name 
-FROM audiobooks a 
-WHERE a.audiobook_id IN (
-    SELECT aa.audiobook_id 
-    FROM audiobooks_authors aa 
-    WHERE author_id = (
-        SELECT author_id
-        FROM authors
-        WHERE authors.second_name='Каменистый'
-        LIMIT 1
-    )
-)
-ORDER BY a.title_name;
 
 
 
